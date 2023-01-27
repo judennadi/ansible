@@ -1,0 +1,34 @@
+---
+
+- hosts: server_2
+  become: true
+  vars:
+    mysrc: "~/foo"
+    mydst: "~/bar"
+  tasks:
+    - name: Check if file exists
+      stat:
+        path: "{{ mysrc }}"
+      register: check_file_name
+    - name: print debug
+      debug:
+        msg: "{{ mysrc }} exist: {{check_file_name.stat.exists}}"
+    - name: Copy file with new name
+      copy:
+        remote_src: true
+        src: "{{ mysrc }}"
+        dest: "{{ mydst }}"
+      when: check_file_name.stat.exists
+    - name: Remove old file
+      file:
+        path: "{{ mysrc }}"
+        state: absent
+      when: check_file_name.stat.exists
+    - name: write to html
+      blockinfile:
+        path: /home/hazard/bf.txt
+        marker: "# {mark} Nodejs Path"
+        block: "it love betting"
+        backup: yes
+
+        

@@ -1,0 +1,2 @@
+- name: source_dot_profile
+  shell: . ~/.profile

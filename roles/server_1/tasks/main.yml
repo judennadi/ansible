@@ -1,0 +1,45 @@
+- name: install apache and php package
+  apt:
+    name:
+      - apache2
+      - libapache2-mod-php
+    state: latest
+- name: upload website to apache server
+  copy:
+    src: html
+    dest: /var/www
+    owner: root
+    group: root
+    mode: 0777
+- name: check if golang is installed
+  stat:
+    path: /usr/local/lib/go
+  register: golang
+- name: install tar
+  apt:
+    name: tar
+- name: install golang
+  unarchive:
+    src: https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
+    dest: /usr/local/lib
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0755
+  when: golang.stat.exists == false
+- name: save GOPATH
+  blockinfile:
+    path: /home/hazard/.profile
+    marker: "# {mark} GOPATH"
+    block: |
+      export GOPATH=$HOME/go
+      export GOCODE=$GOPATH/src/github.com/judennadi
+      export PATH=$PATH:$GOPATH/bin:/usr/local/lib/go/bin
+    backup: yes
+  notify: source_dot_profile
+- name: verify golang installation
+  shell: . ~/.profile && go version
+  register: go_version
+- name: print go version
+  debug:
+    msg: "{{ go_version.stdout }}"

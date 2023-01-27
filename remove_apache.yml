@@ -1,0 +1,18 @@
+---
+
+- hosts: all
+  become: true
+  tasks:
+    - name: remove apache2, nginx and php package
+      apt:
+        update_cache: yes
+        name:
+          - apache2
+          - libapache2-mod-php
+          - nginx
+        state: absent
+        purge: yes
+        autoremove: yes
+      when: ansible_distribution == "Ubuntu"
+
+        

@@ -1,0 +1,123 @@
+---
+
+- hosts: all
+  become: true
+  tasks:
+    - name: update repo index
+      apt:
+        update_cache: yes
+      changed_when: false
+    - name: create jude user
+      user:
+        name: jude
+        groups: sudo
+    - name: add ssh key for jude
+      authorized_key:
+        user: jude
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH/xx9AaWEdRqlT/J2AB5ioz2jINsRgJLAP6IHQ/OcQj ansible"
+    - name: add sudoers file for 
+      copy:
+        src: sudoer_jude
+        dest: /etc/sudoers.d/jude
+        owner: root
+        group: root
+        mode: 0440
+
+
+- hosts: server_1
+  become: true
+  gather_facts: false
+  vars:
+    gopath: "/usr/local/lib/go"
+  tasks:
+    - name: install apache2 and php package
+      apt:
+        name:
+          - apache2
+          - libapache2-mod-php
+        state: latest
+    - name: check if golang is installed
+      stat:
+        path: "{{ gopath }}"
+      register: golang
+    - name: install tar
+      apt:
+        name: tar
+    - name: install golang
+      unarchive:
+        src: https://go.dev/dl/go1.19.3.linux-amd64.tar.gz
+        dest: /usr/local/lib
+        remote_src: yes
+        owner: root
+        group: root
+        mode: 0755  
+      when: golang.stat.exists == false
+    - name: save GOPATH
+      blockinfile:
+        path: /home/hazard/.profile
+        marker: "# {mark} GOPATH"
+        block: |
+          export GOPATH=$HOME/go
+          export GOCODE=$GOPATH/src/github.com/judennadi
+          export PATH=$PATH:$GOPATH/bin:/usr/local/lib/go/bin
+        backup: yes
+    - name: refresh .profile file
+      shell: . ~/.profile && go version
+      register: go_version
+    - name: print go version
+      debug:
+        msg: "{{ go_version.stdout }}"
+
+- hosts: server_2
+  become: true
+  gather_facts: false
+  vars:
+    nodepath: "/usr/local/lib/nodejs"
+  tasks:
+    - name: install nginx
+      apt:
+        name:
+          - nginx
+        state: latest
+    - name: check if nodejs is installed
+      stat:
+        path: "{{ nodepath }}"
+      register: nodejs
+    - name: install tar
+      apt:
+        name: tar
+    - name: install nodejs
+      unarchive:
+        src: https://nodejs.org/dist/v18.12.1/node-v18.12.1-linux-x64.tar.xz
+        dest: /usr/local/lib
+        remote_src: yes
+        owner: root
+        group: root
+        mode: 0755
+      when: nodejs.stat.exists == false
+    - name: Check if file exists
+      stat:
+        path: /usr/local/lib/node-v18.12.1-linux-x64
+      register: old_nodejs_folder
+    - name: rename extracted folder to nodejs
+      shell:
+        cmd: mv node-v18.12.1-linux-x64/ nodejs
+        chdir: /usr/local/lib/
+      when: old_nodejs_folder.stat.exists
+    - name: remove old folder
+      file:
+        path: /usr/local/lib/node-v18.12.1-linux-x64
+        state: absent
+      when: old_nodejs_folder.stat.exists
+    - name: save nodejs PATH
+      blockinfile:
+        path: /home/hazard/.profile
+        marker: "# {mark} Nodejs PATH"
+        block: "export PATH=/usr/local/lib/nodejs/bin:$PATH"
+        backup: yes
+    - name: refresh .profile file
+      shell: . ~/.profile && node -v
+      register: node_version
+    - name: print nodejs version
+      debug:
+        msg: "{{ node_version.stdout }}"    
